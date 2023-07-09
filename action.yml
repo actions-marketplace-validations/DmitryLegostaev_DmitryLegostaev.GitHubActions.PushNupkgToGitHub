@@ -2,6 +2,10 @@ name: Nuget publish to GitHub@DmitryLegostaev
 author: DmitryLegostaev
 description: Simple build, pack and publish .nupkg file to GitHub
 
+branding:
+  icon: package
+  color: green
+
 inputs:
   PROJECT_NAME: 
     description: Project name
