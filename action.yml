@@ -1,0 +1,66 @@
+name: Nuget publish to GitHub@DmitryLegostaev
+author: DmitryLegostaev
+description: Simple build, pack and publish .nupkg file to GitHub
+
+inputs:
+  PROJECT_NAME: 
+    description: Project name
+    required: true
+  DOTNET_CONFIGURATION:
+    description: Configuration name for .NET project
+    required: false
+    default: "Release"
+  NUGET_API_KEY:
+    description: Key to use with nuget push
+    required: true
+  GITHUB_GPR_URL:
+    description: Github GPR url.
+    required: false
+    default: "https://nuget.pkg.github.com"
+  GITHUB_GPR_NAMESPACE:
+    description: Github GRP project namespace
+    required: true
+  DOTNET_VERSION:
+    description: .NET version to use
+    required: false
+    default: "6.0.x"
+
+runs: 
+  using: "composite"
+  steps:
+    - name: List inputs
+      shell: bash
+      run: echo inputs
+
+    - uses: actions/checkout@v3
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: ${{ inputs.DOTNET_VERSION }}
+
+    - name: Restore dependencies
+      shell: bash
+      run: dotnet restore "${{ inputs.PROJECT_NAME }}"
+
+    - name: Build
+      shell: bash
+      run: dotnet build "${{ inputs.PROJECT_NAME }}" --no-restore --configuration ${{ inputs.DOTNET_CONFIGURATION }}
+
+    - name: Get workspace
+      shell: bash
+      run: |
+        githubRepo="${{ inputs.GITHUB_GPR_NAMESPACE }}"
+        githubNamespace="${githubRepo%%/*}"
+        echo "GITHUB_NAMESPACE=$githubNamespace" >> "$GITHUB_ENV"
+
+    - name: Nuget add source
+      shell: bash
+      run: dotnet nuget add source --username ${{ env.GITHUB_NAMESPACE }} --password ${{ inputs.NUGET_API_KEY }} --store-password-in-clear-text --name github "${{ inputs.GITHUB_GPR_URL }}/${{ env.GITHUB_NAMESPACE }}/index.json"
+
+    - name: Nuget pack project
+      shell: bash
+      run: dotnet pack --no-build "${{ inputs.PROJECT_NAME }}" --configuration ${{ inputs.DOTNET_CONFIGURATION }} --output .
+
+    - name: Nuget publish
+      shell: bash
+      run: dotnet nuget push ${{ inputs.PROJECT_NAME }}*.nupkg --api-key ${{ inputs.NUGET_API_KEY }} --source "github"
